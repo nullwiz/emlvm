@@ -116,5 +116,20 @@ def sym_identify(tokens: list[str]) -> list[tuple[str, sp.Expr]]:
                 matches.append((name, ref))
         except Exception:
             continue
+            continue
     matches.sort(key=lambda t: len(str(t[1])))
     return matches
+
+
+def sym_derive(tokens: list[str], var: str = "x") -> tuple[str, str]:
+    """Return strings of the simplified program expression and its derivative wrt var."""
+    trace = sym_trace(tokens, simp_intermediates=False)
+    if trace.simplified is None:
+        raise ValueError("Program produced no expression on stack.")
+    
+    var_sym = trace.variables.get(var)
+    if var_sym is None:
+        return str(trace.simplified), "0"
+        
+    deriv = sp.diff(trace.simplified, var_sym)
+    return str(trace.simplified), str(sp.simplify(deriv))

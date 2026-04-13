@@ -86,3 +86,42 @@ def tree_to_str(node: AnyNode, prefix: str = "", is_last: bool = True) -> str:
     lines += tree_to_str(node.left,  prefix + ext, is_last=False)
     lines += tree_to_str(node.right, prefix + ext, is_last=True)
     return lines
+
+
+# DAG Compilation
+
+def compute_dag(root: AnyNode) -> list[str]:
+    """
+    Computes a DAG representation of the tree using Common Subexpression Elimination.
+    Returns a list of string assignments like 'v0 = 1', 'v1 = eml(x, v0)'.
+    """
+    instructions = []
+    sig_to_reg: dict[str, str] = {}
+    reg_counter = 0
+
+    def visit(node: AnyNode) -> str:
+        nonlocal reg_counter
+        
+        if isinstance(node, LeafNode):
+            sig = f"L:{node.value}"
+            if sig not in sig_to_reg:
+                reg = f"v{reg_counter}"
+                reg_counter += 1
+                sig_to_reg[sig] = reg
+                instructions.append(f"{reg} = {node.value}")
+            return sig_to_reg[sig]
+        
+        # EMLNode
+        l_reg = visit(node.left)
+        r_reg = visit(node.right)
+        sig = f"E:{l_reg}:{r_reg}"
+        
+        if sig not in sig_to_reg:
+            reg = f"v{reg_counter}"
+            reg_counter += 1
+            sig_to_reg[sig] = reg
+            instructions.append(f"{reg} = eml({l_reg}, {r_reg})")
+        return sig_to_reg[sig]
+
+    visit(root)
+    return instructions

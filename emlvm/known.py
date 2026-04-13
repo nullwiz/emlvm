@@ -189,6 +189,42 @@ LIBRARY: dict[str, KnownFormula] = {
         source="tbd",
         notes="K≥27 from paper Table 4. Run `emlvm golf add --max-k 29` to find it.",
     ),
+    "abs": KnownFormula(
+        name="abs",
+        program=None,
+        description="Absolute value  |x|",
+        variables=["x"],
+        k=None,
+        source="tbd",
+        notes="Requested feature. Run `emlvm golf abs`.",
+    ),
+    "min": KnownFormula(
+        name="min",
+        program=None,
+        description="Minimum  min(x, y)",
+        variables=["x", "y"],
+        k=None,
+        source="tbd",
+        notes="Requested feature. Run `emlvm golf min`.",
+    ),
+    "max": KnownFormula(
+        name="max",
+        program=None,
+        description="Maximum  max(x, y)",
+        variables=["x", "y"],
+        k=None,
+        source="tbd",
+        notes="Requested feature. Run `emlvm golf max`.",
+    ),
+    "sgn": KnownFormula(
+        name="sgn",
+        program=None,
+        description="Signum  sgn(x)",
+        variables=["x"],
+        k=None,
+        source="tbd",
+        notes="Requested feature. Run `emlvm golf sgn`.",
+    ),
 }
 
 
@@ -219,6 +255,8 @@ ALIASES: dict[str, str] = {
     "expexp":  "expexp",
     "ln(ln(x))": "lnln",
     "lnln":    "lnln",
+    "|x|":     "abs",
+    "signum":  "sgn",
 }
 
 

@@ -599,6 +599,7 @@ def compile_(
     show_tree:  Annotated[bool,  typer.Option("--tree",   help="Render EML tree")] = False,
     verify_out: Annotated[bool,  typer.Option("--verify", help="Evaluate at test point")] = True,
     test_val:   Annotated[float, typer.Option("--at",     help="Test value")] = 2.0,
+    target:     Annotated[str,   typer.Option("--target", help="Compilation target: rpn or dag")] = "rpn",
 ) -> None:
     """
      Compile a mathematical expression to EML RPN.
@@ -627,9 +628,19 @@ def compile_(
             )
         raise typer.Exit(1)
 
-    console.print(f"\n  Input      : [cyan]{expression}[/]")
-    console.print(f"  EML RPN    : [bold yellow]{cr.rpn}[/]")
-    console.print(f"  K (length) : [dim]{cr.k}[/]  (E-operators: {cr.rpn.count('E')})")
+    if target == "dag":
+        from .tree import build_tree, compute_dag
+        root = build_tree(cr.tokens)
+        insts = compute_dag(root)
+        console.print(f"\n  Input      : [cyan]{expression}[/]")
+        console.print(f"  Target     : [bold magenta]DAG[/]")
+        for ins in insts:
+            console.print(f"    [yellow]{ins}[/]")
+        console.print(f"  Registers  : [dim]{len(insts)}[/]")
+    else:
+        console.print(f"\n  Input      : [cyan]{expression}[/]")
+        console.print(f"  EML RPN    : [bold yellow]{cr.rpn}[/]")
+        console.print(f"  K (length) : [dim]{cr.k}[/]  (E-operators: {cr.rpn.count('E')})")
 
     if show_tree:
         root = build_tree(cr.tokens)
@@ -641,9 +652,8 @@ def compile_(
         try:
             m = EMLMachine(cr.tokens, {input_var: mpmath.mpc(test_val)}, prec=50)
             result = float(mpmath.re(m.run()))
-            label = expression.replace(input_var, str(test_val))
             console.print(
-                f"\n  Test @{input_var}={test_val}: [dim]{label}[/] = [{C_RES}]{result:.12g}[/]"
+                f"\n  Test @{input_var}={test_val}: [dim]{expression}[/] = [{C_RES}]{result:.12g}[/]"
             )
         except Exception:
             pass
@@ -651,6 +661,52 @@ def compile_(
     console.print(f"\n  [dim]Trace:[/] [cyan]emlvm trace '{cr.rpn}' --var {input_var}={test_val}[/]")
     if has_var:
         console.print(f"  [dim]Plot:[/]  [cyan]emlvm plot '{cr.rpn}' --xvar {input_var} --range 0.1:5[/]")
+
+
+
+
+@app.command()
+def dag(
+    program: Annotated[str, typer.Argument(help="RPN program to compile to DAG")],
+) -> None:
+    """Convert an EML program into a Directed Acyclic Graph (DAG) of register operations."""
+    from .tree import build_tree, compute_dag
+    tokens = tokenize(program)
+    v = validate(tokens)
+    if not v.ok:
+        console.print(f"[red]Invalid program:[/] {v.message}")
+        raise typer.Exit(1)
+        
+    root = build_tree(tokens)
+    insts = compute_dag(root)
+    render_header(console, program, {}, subtitle=f"mode: dag (compression/CSE)  ops: {len(insts)}")
+    
+    for ins in insts:
+        console.print(f"  [yellow]{ins}[/]")
+
+
+
+
+@app.command()
+def derive(
+    program: Annotated[str, typer.Argument(help="RPN program to symbolically differentiate")],
+    var: Annotated[str, typer.Option("--var", help="Variable to differentiate with respect to")] = "x",
+) -> None:
+    """Output the symbolic derivative of an EML program using SymPy."""
+    from .sym_eval import sym_derive
+    tokens = tokenize(program)
+    v = validate(tokens, bound_vars={var})
+    if not v.ok:
+        console.print(f"[red]Invalid program:[/] {v.message}")
+        raise typer.Exit(1)
+        
+    render_header(console, program, {}, subtitle="mode: derive")
+    try:
+        orig, deriv = sym_derive(tokens, var=var)
+        console.print(f"  Original : [cyan]{orig}[/]")
+        console.print(f"  d/d{var}     : [bold yellow]{deriv}[/]")
+    except Exception as e:
+        console.print(f"[red]Derivation failed:[/] {e}")
 
 
 
@@ -1168,6 +1224,13 @@ def identify(
         console.print(
             f"\n  [dim]Verify:[/]  [cyan]emlvm sym '{program}'[/]"
         )
+
+
+@app.command()
+def puzzle() -> None:
+    """Start the interactive mathematical EMLVM campaign."""
+    from .puzzle import play_campaign_interactive
+    play_campaign_interactive()
 
 
 # ---------------------------------------------------------------------------
