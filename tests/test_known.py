@@ -29,6 +29,8 @@ ORACLES: dict[str, callable] = {
     "sub":      lambda v: v["x"] - v["y"],
     "mul":      lambda v: v["x"] * v["y"],
     "add":      lambda v: v["x"] + v["y"],
+    "div":      lambda v: v["x"] / v["y"],
+    "sqr":      lambda v: v["x"] ** 2,
 }
 
 # Test point values (algebraically independent transcendentals)

@@ -215,12 +215,12 @@ LIBRARY: dict[str, KnownFormula] = {
     ),
     "div": KnownFormula(
         name="div",
-        program=None,
+        program="1111xE1EEE1EEyE1E",
         description="Division  x / y",
         variables=["x", "y"],
         k=17,
-        source="tbd",
-        notes="K=17 from paper Table 4. Compiler uses K=25 composition. Run `emlvm golf div --max-k 17`.",
+        source="search",
+        notes="K=17 (direct search). Matches paper Table 4.",
     ),
     "pow": KnownFormula(
         name="pow",
@@ -233,12 +233,12 @@ LIBRARY: dict[str, KnownFormula] = {
     ),
     "sqr": KnownFormula(
         name="sqr",
-        program=None,
+        program="1111xEE1EExE1EE1E",
         description="Square  x²",
         variables=["x"],
         k=17,
-        source="tbd",
-        notes="K=17 from paper Table 4. Compiler uses K=17 composition. Run `emlvm golf sqr --max-k 17`.",
+        source="search",
+        notes="K=17 (direct search). Identical to mul(x,x) composition.",
     ),
     "abs": KnownFormula(
         name="abs",
