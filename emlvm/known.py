@@ -215,36 +215,30 @@ LIBRARY: dict[str, KnownFormula] = {
     ),
     "div": KnownFormula(
         name="div",
-        program="1111xE1EEE1EE11yE1EE1EE1E",
+        program=None,
         description="Division  x / y",
         variables=["x", "y"],
-        k=25,
-        source="derived",
-        notes=(
-            "K=25. exp(sub(ln(x), ln(y))) = exp(ln(x) − ln(y)) = x/y. "
-            "Composed from sub (K=11) with ln substitutions + exp wrapper."
-        ),
+        k=17,
+        source="tbd",
+        notes="K=17 from paper Table 4. Compiler uses K=25 composition. Run `emlvm golf div --max-k 17`.",
     ),
     "pow": KnownFormula(
         name="pow",
-        program="1111yEE1EE11xE1EEE1EE1E1E",
+        program=None,
         description="Exponentiation  x^y",
         variables=["x", "y"],
         k=25,
-        source="derived",
-        notes=(
-            "K=25. exp(mul(y, ln(x))) = exp(y·ln(x)) = x^y. "
-            "Composed from mul (K=17) with ln substitution + exp wrapper."
-        ),
+        source="tbd",
+        notes="K=25 from paper Table 4. Compiler uses K=25 composition. Run `emlvm golf pow --max-k 25`.",
     ),
     "sqr": KnownFormula(
         name="sqr",
-        program="1111xEE1EExE1EE1E",
+        program=None,
         description="Square  x²",
         variables=["x"],
         k=17,
-        source="derived",
-        notes="K=17. mul(x, x) — substitute both a and b with x in mul template.",
+        source="tbd",
+        notes="K=17 from paper Table 4. Compiler uses K=17 composition. Run `emlvm golf sqr --max-k 17`.",
     ),
     "abs": KnownFormula(
         name="abs",
