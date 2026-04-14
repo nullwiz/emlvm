@@ -10,16 +10,27 @@ from typing import Optional
 UNARY: dict[str, Optional[list[str]]] = {
     "exp":   ["x", "1", "E"],
     "ln":    ["1", "1", "x", "E", "1", "E", "E"],
-    "log":   ["1", "1", "x", "E", "1", "E", "E"],   # natural log alias
     "id":    ["1", "1", "x", "1", "E", "E", "1", "E", "E"],
-    "neg":   None,   # K=15, find with: emlvm golf neg --max-k 15
-    "inv":   None,   # K=15, find with: emlvm golf inv --max-k 15
-    "sqr":   None,   # K=?, find with: emlvm golf sqr
+    "neg":   ["1", "1", "1", "1", "1", "E", "1", "E", "E", "E", "E", "x", "1", "E", "E"],
+    "inv":   ["1", "1", "1", "1", "1", "E", "1", "E", "E", "E", "E", "x", "E", "1", "E"],
+    "sqr":   ["1", "1", "1", "1", "x", "E", "E", "1", "E", "E", "x", "E", "1", "E", "E", "1", "E"],
     "sqrt":  None,   # K=43, find with: emlvm golf sqrt
     "sin":   None,   # K≥75, very long
     "cos":   None,   # K≥75
     "sinh":  None,
     "cosh":  None,
+}
+
+# Binary operation templates (use 'x' for left operand, 'y' for right)
+BINARY: dict[str, Optional[list[str]]] = {
+    "sub":  ["1", "1", "x", "E", "1", "E", "E", "y", "1", "E", "E"],
+    "add":  ["1", "1", "1", "1", "x", "1", "E", "E", "E", "1", "E", "E",
+             "y", "1", "E", "E", "1", "E", "E"],
+    "mul":  ["1", "1", "1", "1", "x", "E", "E", "1", "E", "E", "y", "E", "1", "E", "E", "1", "E"],
+    "div":  ["1", "1", "1", "1", "x", "E", "1", "E", "E", "E", "1", "E", "E",
+             "1", "1", "y", "E", "1", "E", "E", "1", "E", "E", "1", "E"],
+    "pow":  ["1", "1", "1", "1", "y", "E", "E", "1", "E", "E",
+             "1", "1", "x", "E", "1", "E", "E", "E", "1", "E", "E", "1", "E", "1", "E"],
 }
 
 CONSTANTS: dict[str, list[str]] = {
@@ -39,6 +50,8 @@ FUNC_ALIASES: dict[str, str] = {
     "sin": "sin", "cos": "cos", "tan": "tan",
     "sinh": "sinh", "cosh": "cosh", "tanh": "tanh",
     "abs": None,  # unsupported
+    # Binary function call aliases (resolved via BINARY templates)
+    "add": "add", "sub": "sub", "mul": "mul", "div": "div", "pow": "pow",
 }
 
 
@@ -49,6 +62,19 @@ def _substitute(program: list[str], var: str, replacement: list[str]) -> list[st
     for tok in program:
         if tok == var:
             result.extend(replacement)
+        else:
+            result.append(tok)
+    return result
+
+
+def _substitute_multi(
+    program: list[str], replacements: dict[str, list[str]]
+) -> list[str]:
+    """Simultaneously substitute multiple variables to avoid cross-contamination."""
+    result = []
+    for tok in program:
+        if tok in replacements:
+            result.extend(replacements[tok])
         else:
             result.append(tok)
     return result
@@ -83,9 +109,6 @@ class _Compiler(ast.NodeVisitor):
     def compile(self, expr_str: str) -> Optional[list[str]]:
         # Pre-process common notations
         s = expr_str.strip()
-        # e^x → exp(x)  (only simple form)
-        if s.startswith("e^") and "(" not in s:
-            s = f"exp({s[2:]})"
         # caret to Python power
         s = s.replace("^", "**")
 
@@ -131,10 +154,39 @@ class _Compiler(ast.NodeVisitor):
     def _const(self, val) -> Optional[list[str]]:
         if val == 1 or val == 1.0:
             return ["1"]
+        if val == 0 or val == 0.0:
+            return CONSTANTS["zero"].copy()
+        if isinstance(val, int) and val >= 2:
+            if val > 20:
+                self.unsupported.append(str(val))
+                self.warnings.append(
+                    f"Integer {val} too large for naive compilation (K grows as ~18n). "
+                    f"Try expressing it via exp/ln."
+                )
+                return None
+            # Build integer n as 1 + 1 + ... + 1  (n times) using add
+            result = ["1"]
+            for _ in range(val - 1):
+                result = _substitute(BINARY["add"], "x", result)
+                result = _substitute(result, "y", ["1"])
+            return result
+        if isinstance(val, int) and val <= -1:
+            if val < -20:
+                self.unsupported.append(str(val))
+                self.warnings.append(
+                    f"Integer {val} too large for naive compilation. "
+                    f"Try expressing it via exp/ln."
+                )
+                return None
+            # Build negative integer: neg(|val|)
+            pos = self._const(-val)
+            if pos is None:
+                return None
+            return _substitute(UNARY["neg"], "x", pos)
         self.unsupported.append(str(val))
         self.warnings.append(
             f"Constant {val} requires a dedicated EML program (not in compiler). "
-            f"Try expressing it via exp/ln."
+            f"Try expressing it via exp/ln or integer arithmetic."
         )
         return None
 
@@ -155,6 +207,15 @@ class _Compiler(ast.NodeVisitor):
             return None
         func_name = node.func.id
         canonical = FUNC_ALIASES.get(func_name)
+
+        # Explicitly unsupported (mapped to None in FUNC_ALIASES)
+        if func_name in FUNC_ALIASES and canonical is None:
+            self.unsupported.append(func_name)
+            self.warnings.append(
+                f"'{func_name}' is recognized but not yet supported in EML."
+            )
+            return None
+
         if canonical is None and func_name not in UNARY:
             self.warnings.append(f"Unknown function: '{func_name}'")
             return None
@@ -166,33 +227,62 @@ class _Compiler(ast.NodeVisitor):
                 return None
             return self._apply_unary(canonical, inner)
 
+        if len(node.args) == 2:
+            return self._apply_binary_call(canonical, node.args)
+
         self.warnings.append(
-            f"Binary function '{func_name}' not yet in EML compiler "
-            f"(mul=K19, add=K27). Run: emlvm golf {canonical}"
+            f"Function '{func_name}' called with {len(node.args)} args (expected 1 or 2)."
         )
-        self.unsupported.append(canonical)
         return None
+
+    def _apply_binary_call(self, func: str, args: list) -> Optional[list[str]]:
+        """Handle binary function call syntax like add(x, y), mul(x, y)."""
+        template = BINARY.get(func)
+        if template is None:
+            self.unsupported.append(func)
+            self.warnings.append(
+                f"Binary function '{func}' EML program TBD. "
+                f"Run: emlvm golf {func} to discover the program."
+            )
+            return None
+        left = self._node(args[0])
+        if left is None:
+            return None
+        right = self._node(args[1])
+        if right is None:
+            return None
+        return _substitute_multi(template, {"x": left, "y": right})
 
     def _bin_op(self, node: ast.BinOp) -> Optional[list[str]]:
         op_map = {
-            ast.Mult: ("mul",  "×",  19),
-            ast.Add:  ("add",  "+",  27),
-            ast.Sub:  ("sub",  "−",  None),
-            ast.Div:  ("div",  "/",  None),
-            ast.Pow:  ("pow",  "^",  None),
+            ast.Mult: "mul",
+            ast.Add:  "add",
+            ast.Sub:  "sub",
+            ast.Div:  "div",
+            ast.Pow:  "pow",
         }
-        info = op_map.get(type(node.op))
-        if info:
-            name, sym, k_hint = info
-            k_str = f"K≥{k_hint}" if k_hint else "K=TBD"
+        name = op_map.get(type(node.op))
+        if name is None:
+            self.warnings.append(f"Unsupported binary op: {type(node.op).__name__}")
+            return None
+
+        template = BINARY.get(name)
+        if template is None:
             self.warnings.append(
-                f"Binary op '{sym}' ({k_str} in EML — not yet in compiler). "
+                f"Binary op '{name}' EML program TBD. "
                 f"Run: emlvm golf {name} to discover the program."
             )
             self.unsupported.append(name)
-        else:
-            self.warnings.append(f"Unsupported binary op: {type(node.op).__name__}")
-        return None
+            return None
+
+        left = self._node(node.left)
+        if left is None:
+            return None
+        right = self._node(node.right)
+        if right is None:
+            return None
+
+        return _substitute_multi(template, {"x": left, "y": right})
 
     def _apply_unary(self, func: str, inner: list[str]) -> Optional[list[str]]:
         prog = UNARY.get(func)

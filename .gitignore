@@ -1,2 +1,4 @@
-__pycache__/*
-emlvm/__pycache__/*
+__pycache__/
+emlvm/__pycache__/
+.venv/
+.pytest_cache/

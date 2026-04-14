@@ -155,39 +155,96 @@ LIBRARY: dict[str, KnownFormula] = {
     ),
     "neg": KnownFormula(
         name="neg",
-        program=None,
+        program="11111E1EEEEx1EE",
         description="Negation  −x",
         variables=["x"],
         k=15,
-        source="tbd",
-        notes="K=15 from paper Table 4. Requires extended reals (±∞ intermediates). Run `emlvm golf neg --max-k 15`.",
+        source="search",
+        notes=(
+            "K=15. Uses −∞ as intermediate: builds 0 via eml(1,eml(e,1))=0, "
+            "then eml(1,0)=+∞, eml(1,+∞)=−∞, finally eml(−∞,exp(x))=0−x=−x."
+        ),
     ),
     "inv": KnownFormula(
         name="inv",
-        program=None,
+        program="11111E1EEEExE1E",
         description="Reciprocal  1/x",
         variables=["x"],
         k=15,
-        source="tbd",
-        notes="K=15 from paper Table 4. Run `emlvm golf inv --max-k 15` to find it.",
+        source="search",
+        notes=(
+            "K=15. Similar to neg but uses exp in the final step: "
+            "eml(−∞, x) then eml(result, 1) = exp(−ln(x)) = 1/x."
+        ),
+    ),
+    "sub": KnownFormula(
+        name="sub",
+        program="11xE1EEy1EE",
+        description="Subtraction  x − y",
+        variables=["x", "y"],
+        k=11,
+        source="search",
+        notes=(
+            "K=11. ln(exp(x)) − ln(exp(y)) = x − y. "
+            "Structure: eml(ln(x), exp(y)) where ln = eml(1, eml(eml(1,x),1))."
+        ),
     ),
     "mul": KnownFormula(
         name="mul",
-        program=None,
+        program="1111xEE1EEyE1EE1E",
         description="Multiplication  x·y",
         variables=["x", "y"],
-        k=19,
-        source="tbd",
-        notes="K=19 from paper Table 4. Run `emlvm golf mul --max-k 21` to find it.",
+        k=17,
+        source="search",
+        notes=(
+            "K=17 (direct search). The paper reports K=17 for direct search. "
+            "Implements x·y via exp/ln identities."
+        ),
     ),
     "add": KnownFormula(
         name="add",
-        program=None,
+        program="1111x1EEE1EEy1EE1EE",
         description="Addition  x + y",
         variables=["x", "y"],
-        k=27,
-        source="tbd",
-        notes="K≥27 from paper Table 4. Run `emlvm golf add --max-k 29` to find it.",
+        k=19,
+        source="search",
+        notes=(
+            "K=19 (direct search). Uses complex intermediates via "
+            "ln of negative values. Paper reports K=19."
+        ),
+    ),
+    "div": KnownFormula(
+        name="div",
+        program="1111xE1EEE1EE11yE1EE1EE1E",
+        description="Division  x / y",
+        variables=["x", "y"],
+        k=25,
+        source="derived",
+        notes=(
+            "K=25. exp(sub(ln(x), ln(y))) = exp(ln(x) − ln(y)) = x/y. "
+            "Composed from sub (K=11) with ln substitutions + exp wrapper."
+        ),
+    ),
+    "pow": KnownFormula(
+        name="pow",
+        program="1111yEE1EE11xE1EEE1EE1E1E",
+        description="Exponentiation  x^y",
+        variables=["x", "y"],
+        k=25,
+        source="derived",
+        notes=(
+            "K=25. exp(mul(y, ln(x))) = exp(y·ln(x)) = x^y. "
+            "Composed from mul (K=17) with ln substitution + exp wrapper."
+        ),
+    ),
+    "sqr": KnownFormula(
+        name="sqr",
+        program="1111xEE1EExE1EE1E",
+        description="Square  x²",
+        variables=["x"],
+        k=17,
+        source="derived",
+        notes="K=17. mul(x, x) — substitute both a and b with x in mul template.",
     ),
     "abs": KnownFormula(
         name="abs",
@@ -246,6 +303,15 @@ ALIASES: dict[str, str] = {
     "x+y":     "add",
     "add(x,y)":"add",
     "0":       "zero",
+    "x-y":     "sub",
+    "sub(x,y)":"sub",
+    "x/y":     "div",
+    "div(x,y)":"div",
+    "x^y":     "pow",
+    "pow(x,y)":"pow",
+    "x**y":    "pow",
+    "x^2":     "sqr",
+    "sqr(x)":  "sqr",
     # new aliases
     "e^e":     "ee",
     "ee":      "ee",
