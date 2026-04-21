@@ -349,7 +349,7 @@ To add a newly discovered formula:
 ```bibtex
 @misc{eml2025,
   title   = {All Elementary Functions from a Single Operator},
-  author  = {[Author]},
+  author  = {Andrzej Odrzywołek},
   year    = {2025},
   url     = {https://arxiv.org/abs/2603.21852}
 }
